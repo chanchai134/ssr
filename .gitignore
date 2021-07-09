@@ -1,0 +1,4 @@
+node_modules/*
+view/**/*.js
+*.txt
+package-lock.json

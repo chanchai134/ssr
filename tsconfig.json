@@ -1,0 +1,13 @@
+{
+	"compilerOptions": {
+		"outDir": "./view/js",
+		"target": "es6",
+		"jsx": "react",
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"moduleResolution": "node"
+	},
+	"include": ["view/**/*.tsx"],
+}
