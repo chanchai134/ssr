@@ -1,6 +1,6 @@
-import React, { Fragment, useMemo, useReducer } from 'react';
-import { createEpicMiddleware, ofType, StateObservable } from 'redux-observable';
-import { bufferTime, concatMap, delay, mapTo, mergeMap, Observable, of, tap } from 'rxjs';
+import React, { Fragment, useCallback, useMemo, useReducer } from 'react';
+import { createEpicMiddleware, ofType } from 'redux-observable';
+import { delayWhen, EMPTY, mergeMap, Observable, Subject, tap } from 'rxjs';
 
 interface State {
     x : number
@@ -11,32 +11,47 @@ enum Action {
     Minus
 }
 
+const refState: { state: State } = { 
+    state: undefined as any
+}
+
+const renderBus = new Subject<State>()
+
 const reducer = (state: State, action: { type: Action }) => {
     if(action.type === Action.Plus) {
         return { x: state.x+1 }
     } else {
-        console.log(new Date().toLocaleTimeString())
         return { x: state.x-1 }
     }
 }
 
-const incrementIfOddEpic = (action$: Observable<{ type: Action }>, state$: StateObservable<State>) => action$.pipe(
-    ofType(Action.Plus),
-    bufferTime(10000),
-    tap(x => console.log(x.length)),
-    mergeMap(x => x),
-    concatMap(x => of(x).pipe(
-        delay(1000)
-    )),
-    mapTo({ type: Action.Minus })
-);
+const incrementIfOddEpic = (action$: Observable<{ type: Action }>) => {
+    return action$.pipe(
+        delayWhen(() => renderBus),
+        ofType(Action.Plus),
+        tap(() => {
+            console.log('real')
+            console.log(refState.state)
+        }),
+        mergeMap(() => EMPTY),
+        // mapTo({ type: Action.Minus })
+    )
+}
 
 export function LikeButton (props: { commentID: number, clientRender: boolean }){
-    const [state, dispatch] = useReducer(reducer, { x: 1 });
+    const rxReducer = useCallback((state: State, action: { type: Action }) => {
+        const result = reducer(state, action)
+        refState.state = result
+        return result
+    }, [])
+
+    const [state, dispatch] = useReducer(rxReducer, undefined, () => ({ x: 1 }));
+
     const rxDispatch = useMemo(() => {
-        const epicMiddleware = createEpicMiddleware();
+        refState.state = state
+        const epicMiddleware = createEpicMiddleware()
         const storeFake: any = {
-            getState: () => state,
+            getState: () => undefined,
             dispatch: dispatch.bind(dispatch)
         }
         const newDispatch: typeof dispatch = epicMiddleware(storeFake)(storeFake.dispatch) as any
@@ -46,6 +61,10 @@ export function LikeButton (props: { commentID: number, clientRender: boolean })
         return newDispatch
     }, []);
 
+    useMemo(() => {
+        renderBus.next(state)
+    }, [state])
+
     const x = () => { 
         rxDispatch({ type: Action.Plus })
     }
@@ -53,6 +72,7 @@ export function LikeButton (props: { commentID: number, clientRender: boolean })
     const t = () => { 
         rxDispatch({ type: Action.Minus })
     }
+
     return (
         <Fragment>
             <b>POM {props.commentID} {state.x}</b>
