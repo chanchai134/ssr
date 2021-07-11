@@ -38,7 +38,7 @@ const incrementIfOddEpic = (action$: Observable<{ type: Action }>) => {
     )
 }
 
-export function LikeButton (props: { commentID: number, clientRender: boolean }){
+export function LikeButton (props: { commentID: number, clientRender: boolean }) {
     const rxReducer = useCallback((state: State, action: { type: Action }) => {
         const result = reducer(state, action)
         refState.state = result
